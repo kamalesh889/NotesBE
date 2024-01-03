@@ -1,0 +1,8 @@
+database:
+  host: 
+  port: 5432
+  name: 
+  user: 
+  password: 
+  migrate: false
+  seed: false
