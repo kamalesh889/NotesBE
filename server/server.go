@@ -1,14 +1,14 @@
 package server
 
 import (
-	"NotesBe/repository"
+	"NOTESBE/repository"
 
 	"github.com/gorilla/mux"
 )
 
 type server struct {
 	router *mux.Router
-	db     *repository.Database
+	db     repository.Repository
 }
 
 func NewServer(db *repository.Database) *server {

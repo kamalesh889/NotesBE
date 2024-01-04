@@ -1,7 +1,7 @@
 package connection
 
 import (
-	"NotesBe/repository"
+	"NOTESBE/repository"
 	"log"
 
 	"github.com/spf13/viper"
@@ -17,8 +17,7 @@ func InitializeDB() (*repository.Database, error) {
 		log.Fatal(err)
 	}
 
-	isMigrate := true // change it
-	if isMigrate {
+	if viper.GetBool("database.migrate") {
 		Migrate(db)
 	}
 
@@ -35,6 +34,7 @@ func Migrate(db *gorm.DB) {
 		return
 	}
 
-	db.Exec("CREATE INDEX idx ON note USING GIN (note);")
+	db.Exec("CREATE EXTENSION btree_gin;")
+	db.Exec("CREATE INDEX idx ON notes USING GIN (userid, to_tsvector('english', note));")
 
 }

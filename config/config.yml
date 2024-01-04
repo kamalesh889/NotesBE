@@ -1,8 +1,11 @@
 database:
-  host: 
+  host: 127.0.0.1
   port: 5432
-  name: 
-  user: 
-  password: 
-  migrate: false
-  seed: false
+  name: notes
+  user: postgres
+  password: kamalesh
+  migrate: false  # make it false after the migration
+
+token:
+  secretkey: "my-secret-key"
+

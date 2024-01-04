@@ -1,10 +1,26 @@
 package server
 
-import "github.com/gorilla/mux"
+import (
+	"NOTESBE/utility"
+	"time"
+
+	"github.com/didip/tollbooth"
+	"github.com/didip/tollbooth/limiter"
+	"github.com/gorilla/mux"
+	"github.com/juju/ratelimit"
+)
 
 func Router(s *server) *mux.Router {
 
 	r := s.router
+
+	limiter := tollbooth.NewLimiter(100, &limiter.ExpirableOptions{})
+	r.Use(utility.RateLimitMiddleware(limiter))
+
+	throttleLimiter := ratelimit.NewBucketWithQuantum(time.Second, 100, 100)
+	r.Use(utility.RequestThrottleMiddleware(throttleLimiter))
+
+	r.HandleFunc("/ping", Ping).Methods("GET")
 
 	// Authentication routes
 	authRouter := r.PathPrefix("/api/auth").Subrouter()
@@ -13,14 +29,14 @@ func Router(s *server) *mux.Router {
 
 	// Notes routes
 	notesRouter := r.PathPrefix("/api/notes").Subrouter()
-	notesRouter.HandleFunc("", s.CreateNotes).Methods("POST")
-	notesRouter.HandleFunc("", s.GetNotes).Methods("GET")
-	notesRouter.HandleFunc("/{id}", s.GetNotesById).Methods("GET")
-	notesRouter.HandleFunc("/{id}", s.UpdateNoteById).Methods("PUT")
-	notesRouter.HandleFunc("/{id}", s.DeleteNoteById).Methods("DELETE")
-	notesRouter.HandleFunc("/{id}/share", s.ShareNoteById).Methods("POST")
+	notesRouter.HandleFunc("", utility.VerifyToken(s.CreateNotes)).Methods("POST")
+	notesRouter.HandleFunc("", utility.VerifyToken(s.GetNotes)).Methods("GET")
+	notesRouter.HandleFunc("/{id}", utility.VerifyToken(s.GetNotesById)).Methods("GET")
+	notesRouter.HandleFunc("/{id}", utility.VerifyToken(s.UpdateNoteById)).Methods("PUT")
+	notesRouter.HandleFunc("/{id}", utility.VerifyToken(s.DeleteNoteById)).Methods("DELETE")
+	notesRouter.HandleFunc("/{id}/share", utility.VerifyToken(s.ShareNoteById)).Methods("POST")
 
-	r.HandleFunc("/api/search", s.GetNoteByKey).Methods("GET")
+	r.HandleFunc("/api/search", utility.VerifyToken(s.GetNoteByKey)).Methods("GET")
 
 	return r
 }

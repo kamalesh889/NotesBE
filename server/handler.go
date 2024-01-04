@@ -1,27 +1,33 @@
 package server
 
 import (
-	"NotesBe/repository"
-	"NotesBe/utility"
+	"NOTESBE/repository"
+	"NOTESBE/utility"
 	"encoding/json"
 	"net/http"
 	"strconv"
-
-	"github.com/gorilla/mux"
 )
 
+func Ping(w http.ResponseWriter, r *http.Request) {
+	w.Write([]byte("ping\n"))
+}
+
 func (s *server) Signup(w http.ResponseWriter, r *http.Request) {
+
+	w.Header().Set("Content-Type", "application/json")
 
 	var req UserReq
 
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
 		return
 	}
 
 	if req.UserName == "" || req.PassWord == "" {
 		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "Invalid request"})
 		return
 	}
 
@@ -33,24 +39,30 @@ func (s *server) Signup(w http.ResponseWriter, r *http.Request) {
 	err = s.db.CreateUser(userInfo)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
 		return
 	}
 
 	w.WriteHeader(http.StatusCreated)
+	w.Write([]byte("User Account created"))
 }
 
 func (s *server) Login(w http.ResponseWriter, r *http.Request) {
+
+	w.Header().Set("Content-Type", "application/json")
 
 	var req UserReq
 
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
 		return
 	}
 
 	if req.UserName == "" || req.PassWord == "" {
 		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "Invalid request"})
 		return
 	}
 
@@ -62,6 +74,7 @@ func (s *server) Login(w http.ResponseWriter, r *http.Request) {
 	userId, err := s.db.GetUser(userInfo)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
 		return
 	}
 
@@ -72,6 +85,7 @@ func (s *server) Login(w http.ResponseWriter, r *http.Request) {
 	token, err := tokenReq.CreateJwtToken()
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
 		return
 	}
 
@@ -86,21 +100,21 @@ func (s *server) Login(w http.ResponseWriter, r *http.Request) {
 
 func (s *server) CreateNotes(w http.ResponseWriter, r *http.Request) {
 
+	w.Header().Set("Content-Type", "application/json")
+
 	var req NoteReq
 
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
 		return
 	}
 
-	query := r.URL.Query()
-	user := query.Get("userid")
-
-	userId, _ := strconv.ParseUint(user, 10, 64)
-
-	if userId == 0 {
+	userId, err := utility.ParseUserId(r)
+	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
 		return
 	}
 
@@ -112,6 +126,7 @@ func (s *server) CreateNotes(w http.ResponseWriter, r *http.Request) {
 	err = s.db.CreateNote(noteInfo)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
 		return
 	}
 
@@ -120,19 +135,19 @@ func (s *server) CreateNotes(w http.ResponseWriter, r *http.Request) {
 
 func (s *server) GetNotes(w http.ResponseWriter, r *http.Request) {
 
-	query := r.URL.Query()
-	user := query.Get("userid")
+	w.Header().Set("Content-Type", "application/json")
 
-	userId, _ := strconv.ParseUint(user, 10, 64)
-
-	if userId == 0 {
+	userId, err := utility.ParseUserId(r)
+	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
 		return
 	}
 
 	notes, err := s.db.GetNotesOfUser(userId)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
 		return
 	}
 
@@ -143,23 +158,26 @@ func (s *server) GetNotes(w http.ResponseWriter, r *http.Request) {
 
 func (s *server) GetNotesById(w http.ResponseWriter, r *http.Request) {
 
-	vars := mux.Vars(r)
+	w.Header().Set("Content-Type", "application/json")
 
-	note, found := vars["id"]
-	if !found {
+	noteId, err := utility.ParseNoteId(r)
+	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-	noteId, _ := strconv.ParseUint(note, 10, 64)
-
-	if noteId == 0 {
-		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
 		return
 	}
 
-	notes, err := s.db.GetNoteById(noteId)
+	userId, err := utility.ParseUserId(r)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		return
+	}
+
+	notes, err := s.db.GetNoteById(noteId, userId)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
 		return
 	}
 
@@ -170,31 +188,34 @@ func (s *server) GetNotesById(w http.ResponseWriter, r *http.Request) {
 
 func (s *server) UpdateNoteById(w http.ResponseWriter, r *http.Request) {
 
+	w.Header().Set("Content-Type", "application/json")
+
 	var req NoteReq
 
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
 		return
 	}
 
-	vars := mux.Vars(r)
-
-	note, found := vars["id"]
-	if !found {
+	userId, err := utility.ParseUserId(r)
+	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-	noteId, _ := strconv.ParseUint(note, 10, 64)
-
-	if noteId == 0 {
-		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
 		return
 	}
 
-	err = s.db.UpdateNoteById(noteId, req.Note)
+	noteId, err := utility.ParseNoteId(r)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		return
+	}
+
+	err = s.db.UpdateNoteById(noteId, userId, req.Note)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
 		return
 	}
 
@@ -203,23 +224,26 @@ func (s *server) UpdateNoteById(w http.ResponseWriter, r *http.Request) {
 
 func (s *server) DeleteNoteById(w http.ResponseWriter, r *http.Request) {
 
-	vars := mux.Vars(r)
+	w.Header().Set("Content-Type", "application/json")
 
-	note, found := vars["id"]
-	if !found {
+	noteId, err := utility.ParseNoteId(r)
+	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-	noteId, _ := strconv.ParseUint(note, 10, 64)
-
-	if noteId == 0 {
-		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
 		return
 	}
 
-	err := s.db.DeleteNoteById(noteId)
+	userId, err := utility.ParseUserId(r)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		return
+	}
+
+	err = s.db.DeleteNoteById(noteId, userId)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
 		return
 	}
 
@@ -228,29 +252,26 @@ func (s *server) DeleteNoteById(w http.ResponseWriter, r *http.Request) {
 
 func (s *server) ShareNoteById(w http.ResponseWriter, r *http.Request) {
 
+	w.Header().Set("Content-Type", "application/json")
+
 	var req ShareNoteReq
 
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
 		return
 	}
 
-	vars := mux.Vars(r)
-
-	note, found := vars["id"]
-	if !found {
+	noteId, err := utility.ParseNoteId(r)
+	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-	noteId, _ := strconv.ParseUint(note, 10, 64)
-
-	if noteId == 0 {
-		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
 		return
 	}
 
 	if req.RecieverId == 0 || req.SenderId == 0 {
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -258,6 +279,7 @@ func (s *server) ShareNoteById(w http.ResponseWriter, r *http.Request) {
 	err = s.db.ShareNoteToUser(noteId, req.SenderId, req.RecieverId)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
 		return
 	}
 
@@ -265,6 +287,8 @@ func (s *server) ShareNoteById(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *server) GetNoteByKey(w http.ResponseWriter, r *http.Request) {
+
+	w.Header().Set("Content-Type", "application/json")
 
 	query := r.URL.Query()
 	user := query.Get("userid")
@@ -274,12 +298,14 @@ func (s *server) GetNoteByKey(w http.ResponseWriter, r *http.Request) {
 
 	if userId == 0 {
 		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "User id is not valid"})
 		return
 	}
 
 	records, err := s.db.GetNotesByKey(userId, keyword)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
 		return
 	}
 

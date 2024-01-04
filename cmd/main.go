@@ -1,8 +1,8 @@
 package main
 
 import (
-	"NotesBe/connection"
-	"NotesBe/server"
+	"NOTESBE/connection"
+	"NOTESBE/server"
 	"fmt"
 	"log"
 	"net/http"
