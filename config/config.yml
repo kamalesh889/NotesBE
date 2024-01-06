@@ -4,7 +4,7 @@ database:
   name: notes
   user: postgres
   password: kamalesh
-  migrate: false  # make it false after the migration
+  migrate: false  
 
 token:
   secretkey: "my-secret-key"
