@@ -13,6 +13,6 @@
 ## Steps to run 
 - go run cmd/main.go
 
-## steps tp run test cases
+## Steps to run test cases
 - cd server
 - go test -v
